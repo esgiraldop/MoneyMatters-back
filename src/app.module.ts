@@ -6,6 +6,10 @@ import { EnvConfig } from "./common/config/env.config";
 import { AuthModule } from "./modules/auth/auth.module";
 import { JwtStrategy } from "./modules/auth/strategies/jwt.strategy";
 import { UsersModule } from "./modules/users/users.module";
+import { TransactionsModule } from './modules/transactions/transactions.module';
+import { BudgetModule } from './modules/budget/budget.module';
+import { CategoryModule } from './modules/category/category.module';
+import { RecoveryCodesModule } from './modules/recovery-codes/recovery-codes.module';
 
 @Module({
   imports: [
@@ -17,12 +21,13 @@ import { UsersModule } from "./modules/users/users.module";
     TypeOrmModule.forRootAsync({ useClass: DatabaseConfigService }),
     AuthModule,
     UsersModule,
-    // RolesModule,
+    TransactionsModule,
+    BudgetModule,
+    CategoryModule,
+    RecoveryCodesModule,
   ],
   controllers: [],
   providers: [
-    // AppSeeder,
-    // RoleSeeder,
     JwtStrategy,
   ],
 })

@@ -21,7 +21,6 @@ export class AuthService {
 
     return await this.loginService.generateToken(
       userData.id
-      // userData.role.id
     );
   }
 
