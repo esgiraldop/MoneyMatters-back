@@ -6,10 +6,12 @@ import { EnvConfig } from "./common/config/env.config";
 import { AuthModule } from "./modules/auth/auth.module";
 import { JwtStrategy } from "./modules/auth/strategies/jwt.strategy";
 import { UsersModule } from "./modules/users/users.module";
-import { TransactionsModule } from './modules/transactions/transactions.module';
-import { BudgetModule } from './modules/budget/budget.module';
-import { CategoryModule } from './modules/category/category.module';
-import { RecoveryCodesModule } from './modules/recovery-codes/recovery-codes.module';
+import { TransactionsModule } from "./modules/transactions/transactions.module";
+import { BudgetModule } from "./modules/budget/budget.module";
+import { CategoryModule } from "./modules/category/category.module";
+import { RecoveryCodesModule } from "./modules/recovery-codes/recovery-codes.module";
+import { AppInitializer } from "./seed/seeder";
+import { SeedersService } from "./seed/seeder.service";
 
 @Module({
   imports: [
@@ -27,8 +29,6 @@ import { RecoveryCodesModule } from './modules/recovery-codes/recovery-codes.mod
     RecoveryCodesModule,
   ],
   controllers: [],
-  providers: [
-    JwtStrategy,
-  ],
+  providers: [JwtStrategy, AppInitializer, SeedersService],
 })
 export class AppModule {}
