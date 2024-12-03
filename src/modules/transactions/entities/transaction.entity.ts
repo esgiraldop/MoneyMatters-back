@@ -1,3 +1,4 @@
+import { IsDateString } from "class-validator";
 import { Budget } from "src/modules/budget/entities/budget.entity";
 import { Category } from "src/modules/category/entities/category.entity";
 import { User } from "src/modules/users/entities/user.entity";
@@ -21,7 +22,8 @@ export class Transaction {
   description: string;
 
   @Column({ type: "date" })
-  transactionDate: string;
+  @IsDateString()
+  transactionDate: Date;
 
   @ManyToOne(() => User, (user) => user.transactions)
   @JoinColumn({ name: "user_id" })
@@ -34,5 +36,4 @@ export class Transaction {
   @ManyToOne(() => Budget, (budget) => budget.transactions)
   @JoinColumn({ name: "budget_id" })
   budget: Budget;
-} 
-
+}
