@@ -1,7 +1,5 @@
 import { Repository } from "typeorm";
 import { Injectable } from "@nestjs/common";
-import { CreateBudgetDto } from "./dto/create-budget.dto";
-import { UpdateBudgetDto } from "./dto/update-budget.dto";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Budget } from "./entities/budget.entity";
 
@@ -12,45 +10,29 @@ export class BudgetService {
     private readonly budgetRepository: Repository<Budget>
   ) {}
 
-  async checkParent(userId: number): Promise<Budget | undefined> {
-    const existingBudget = await this.budgetRepository.findOne({
-      where: {
-        user: { id: userId },
-      },
-      order: { id: "DESC" },
-    });
-    return existingBudget;
-  }
-  async create(
-    createBudgetDto: CreateBudgetDto,
-    userId: number
-  ): Promise<Budget> {
-    const existingBudget = await this.checkParent(userId);
-    if (existingBudget) {
-      createBudgetDto.amount += 1;
-    }
+  // async checkParent(parentId: number): Promise<boolean> {
+  //   const existParent = await this.budgetRepository.findOne({
+  //     where: { id: parentId },
+  //   });
+  //   if (!existParent) {
+  //     throw new NotFoundException("The Budget general  doesn't exist");
+  //   }
+  //   return true;
+  // }
+  // async createBudget(
+  //   createBudgetDto: CreateBudgetDto,
+  //   userId: number
+  // ): Promise<Budget> {
+  //   if (createBudgetDto.budget_id !== null) {
+  //     await this.checkParent(createBudgetDto.budget_id);
 
-    const newBudget = this.budgetRepository.create({
-      ...createBudgetDto,
-      user: { id: userId },
-    });
+  //   }
+  //   createBudgetDto.userId = userId
+  //   const newBudget = this.budgetRepository.create( createBudgetDto);
+  //   return await this.budgetRepository.save(newBudget);
+  // }
 
-    return await this.budgetRepository.save(newBudget);
-  }
-
-  findAll() {
-    return `This action returns all budget`;
-  }
-
-  findOne(id: number) {
-    return `This action returns a #${id} budget`;
-  }
-
-  update(id: number, updateBudgetDto: UpdateBudgetDto) {
-    return `This action updates a #${id} budget`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} budget`;
+  async findOne(id: number): Promise<Budget> {
+    return await this.budgetRepository.findOne({ where: { id: id } });
   }
 }

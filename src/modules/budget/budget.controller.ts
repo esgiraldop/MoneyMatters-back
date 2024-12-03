@@ -1,4 +1,4 @@
-import { CreateBudgetDto } from './dto/create-budget.dto';
+import { CreateBudgetDto } from "./dto/create-budget.dto";
 import {
   Controller,
   Get,
@@ -16,28 +16,8 @@ import { UserId } from "src/common/decorators/user.decorator";
 export class BudgetController {
   constructor(private readonly budgetService: BudgetService) {}
 
-  @Post()
-  create(@Body() createBudgetDto: CreateBudgetDto, @UserId() userId: number) {
-    return this.budgetService.create(createBudgetDto,userId);
-  }
-
-  @Get()
-  findAll() {
-    return this.budgetService.findAll();
-  }
-
   @Get(":id")
-  findOne(@Param("id") id: string) {
-    return this.budgetService.findOne(+id);
-  }
-
-  @Patch(":id")
-  update(@Param("id") id: string, @Body() updateBudgetDto: UpdateBudgetDto) {
-    return this.budgetService.update(+id, updateBudgetDto);
-  }
-
-  @Delete(":id")
-  remove(@Param("id") id: string) {
-    return this.budgetService.remove(+id);
+  findOne(@Param("id") id: number) {
+    return this.budgetService.findOne(id);
   }
 }
