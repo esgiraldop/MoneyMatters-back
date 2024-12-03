@@ -10,6 +10,7 @@ export class CategoryController {
   }
   @Get(":id")
   findOne(@Param("id") id: number) {
+    console.log("hola");
     return this.categoryService.findOne(id);
   }
 }
