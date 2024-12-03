@@ -1,4 +1,8 @@
-import { Injectable } from "@nestjs/common";
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { CreateTransactionDto } from "./dto/create-transaction.dto";
 import { UpdateTransactionDto } from "./dto/update-transaction.dto";
 import { InjectRepository } from "@nestjs/typeorm";
@@ -7,6 +11,7 @@ import { Transaction } from "./entities/transaction.entity";
 import { UsersService } from "../users/users.service";
 import { BudgetService } from "../budget/budget.service";
 import { CategoryService } from "../category/category.service";
+import { isDateInCurrentMonth } from "src/common/utilities/check-date-in-current-month.utility";
 
 @Injectable()
 export class TransactionsService {
@@ -24,14 +29,30 @@ export class TransactionsService {
   ): Promise<Transaction> {
     const { amount, description, transactionDate, category_id, budget_id } =
       createTransactionDto;
-
+    if (!isDateInCurrentMonth(transactionDate))
+      throw new ConflictException(
+        "The transaction could not be created since the date is not in the same month"
+      );
     // Find user, category and budget by id
     const user = await this.usersService.findById(user_id);
+    if (!user) {
+      throw new NotFoundException(
+        `The user with id ${user_id} could not be found`
+      );
+    }
     const category = await this.categoryService.findOne(category_id);
+    if (!category) {
+      throw new NotFoundException(
+        `The category with id ${category_id} could not be found`
+      );
+    }
     const budget = await this.budgetService.findOne(budget_id);
-    console.log("\n\n\nuser: ", user);
-    console.log("category: ", category);
-    console.log("budget: ", budget);
+    if (!budget) {
+      throw new NotFoundException(
+        `The budget with id ${budget_id} could not be found`
+      );
+    }
+
     if (user && category && budget) {
       const createdData = this.transactionRepository.create({
         amount,
