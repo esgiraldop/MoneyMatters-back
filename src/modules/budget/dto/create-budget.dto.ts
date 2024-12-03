@@ -31,5 +31,5 @@ export class CreateBudgetDto {
 
   @IsOptional()
   @IsInt()
-  categoryId?: number | null;
+  category_id: number | null;
 }
