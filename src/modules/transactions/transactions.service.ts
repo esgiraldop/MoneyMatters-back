@@ -39,10 +39,9 @@ export class TransactionsService {
       throw new NotFoundException(
         `The user with id ${user_id} could not be found`
       );
-
-    const category = await this.transactionRepository.findOne({
-      where: { id: createTransactionDto.category_id },
-    });
+    console.log("\n\n\ncategory_id: ", category_id);
+    const category = await this.categoryService.findOne(category_id);
+    console.log("category: ", category);
     if (!category)
       throw new NotFoundException(
         `The category with id ${category_id} could not be found`
@@ -62,6 +61,7 @@ export class TransactionsService {
         user,
         category,
         budget,
+        isActive: true, // true by default
       });
       return await this.transactionRepository.save(createdData);
     }
@@ -85,36 +85,38 @@ export class TransactionsService {
         "The transaction could not be created since the date is not in the same month"
       );
 
-    const category = await this.transactionRepository.findOne({
-      where: { id: category_id },
-    });
-    if (!category)
+    const category = await this.categoryService.findOne(category_id);
+    if (!category) {
       throw new NotFoundException(
         `The category with id ${category_id} could not be found`
       );
-
-    const budget = await this.budgetService.findOne(budget_id);
-    if (!budget)
-      throw new NotFoundException(
-        `The budget with id ${budget_id} could not be found`
-      );
-
-    if (category && budget) {
+    } else {
       const transaction = await this.transactionRepository.findOne({
         where: { id },
       });
       if (!transaction)
-        throw new NotFoundException("The transaction could not be found");
+        throw new NotFoundException(
+          `The transaction with id ${id} could not be found`
+        );
       const updatedTransaction = this.transactionRepository.merge(transaction, {
         ...rest,
         category,
-        budget,
       });
-      return this.transactionRepository.save(updatedTransaction);
+      return await this.transactionRepository.save(updatedTransaction);
     }
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} transaction`;
+  async remove(id: number) {
+    const transaction = await this.transactionRepository.findOne({
+      where: { id },
+    });
+    if (!transaction)
+      throw new NotFoundException(
+        `The transaction with id ${id} could not be found`
+      );
+    const updatedTransaction = this.transactionRepository.merge(transaction, {
+      isActive: false,
+    });
+    return await this.transactionRepository.save(updatedTransaction);
   }
 }
