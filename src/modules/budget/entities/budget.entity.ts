@@ -20,6 +20,7 @@ export class Budget {
 
   @ManyToOne(() => Budget, (budget) => budget.children, {
     nullable: true,
+    onDelete: "SET NULL",
   })
   @JoinColumn({ name: "budget_id" })
   parent: Budget | null;
@@ -52,4 +53,7 @@ export class Budget {
 
   @OneToMany(() => Transaction, (transaction) => transaction.budget)
   transactions: Transaction[];
+
+  @Column({ type: "boolean", default: false })
+  isDeleted: boolean;
 }

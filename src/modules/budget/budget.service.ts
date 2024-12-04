@@ -1,8 +1,13 @@
 import { Repository } from "typeorm";
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Budget } from "./entities/budget.entity";
 import { CreateBudgetDto } from "./dto/create-budget.dto";
+import { UpdateBudgetDto } from "./dto/update-budget.dto";
 import { Category } from "../category/entities/category.entity";
 
 @Injectable()
@@ -14,35 +19,62 @@ export class BudgetService {
     private readonly categoryRepository: Repository<Category>
   ) {}
 
-  async checkParent(parentId: number): Promise<boolean> {
-    const existParent = await this.budgetRepository.findOne({
-      where: { id: parentId },
+  private async validateBudgetExists(id: number): Promise<Budget> {
+    const budget = await this.budgetRepository.findOne({
+      where: { id, isDeleted: false },
+      relations: ["category", "parent"],
     });
-    if (!existParent) {
-      throw new NotFoundException("The Budget general  doesn't exist");
+    if (!budget) {
+      throw new NotFoundException("Budget not found");
     }
-    return true;
+    return budget;
+  }
+
+  private async checkParent(parentId: number): Promise<Budget> {
+    const parentBudget = await this.validateBudgetExists(parentId);
+    return parentBudget;
+  }
+
+  private async checkCategory(categoryId: number): Promise<Category> {
+    const category = await this.categoryRepository.findOne({
+      where: { id: categoryId },
+    });
+    if (!category) {
+      throw new NotFoundException("Category does not exist");
+    }
+    return category;
   }
 
   async createBudget(
     createBudgetDto: CreateBudgetDto,
     userId: number
   ): Promise<Budget> {
-    let category = null;
-    if (createBudgetDto.category_id) {
-      category = await this.categoryRepository.findOne({
-        where: { id: createBudgetDto.category_id },
-      });
-      if (!category) {
-        throw new NotFoundException("Category does not exist");
+    const category = createBudgetDto.category_id
+      ? await this.checkCategory(createBudgetDto.category_id)
+      : null;
+
+    const parentBudget = createBudgetDto.budget_id
+      ? await this.checkParent(createBudgetDto.budget_id)
+      : null;
+
+    if (parentBudget && createBudgetDto.amount) {
+      if (parentBudget.amount < createBudgetDto.amount) {
+        throw new BadRequestException(
+          "Child budget's amount cannot exceed the parent's budget amount."
+        );
       }
     }
 
-    let parentBudget = null;
-    if (createBudgetDto.budget_id !== null) {
-      parentBudget = await this.budgetRepository.findOne({
-        where: { id: createBudgetDto.budget_id },
-      });
+    if (!parentBudget) {
+      if (
+        createBudgetDto.amount ||
+        createBudgetDto.startDate ||
+        createBudgetDto.endDate
+      ) {
+        throw new BadRequestException(
+          "Parent budget can only modify the 'name'. Amount and Date cannot be set at creation."
+        );
+      }
     }
 
     const newBudget = this.budgetRepository.create({
@@ -56,6 +88,78 @@ export class BudgetService {
   }
 
   async findOne(id: number): Promise<Budget> {
-    return await this.budgetRepository.findOne({ where: { id: id } });
+    return await this.validateBudgetExists(id);
+  }
+
+  async getAll(userId: number): Promise<Budget[]> {
+    return await this.budgetRepository
+      .createQueryBuilder("budget")
+      .leftJoinAndSelect("budget.category", "category")
+      .leftJoinAndSelect("budget.parent", "parent")
+      .leftJoinAndSelect("budget.user", "user")
+      .where("budget.userId = :userId", { userId })
+      .andWhere("budget.isDeleted = :isDeleted", { isDeleted: false })
+      .getMany();
+  }
+
+  async updateBudget(
+    id: number,
+    updateBudgetDto: UpdateBudgetDto
+  ): Promise<Budget> {
+    const existingBudget = await this.validateBudgetExists(id);
+
+    const isChildBudget = existingBudget.parent !== null;
+
+    if (!isChildBudget) {
+      if (
+        updateBudgetDto.amount ||
+        updateBudgetDto.startDate ||
+        updateBudgetDto.endDate
+      ) {
+        throw new BadRequestException(
+          "Parent budget can only modify the 'name'. Amount and Date cannot be changed."
+        );
+      }
+    }
+
+    if (isChildBudget && updateBudgetDto.amount) {
+      if (existingBudget.parent.amount < updateBudgetDto.amount) {
+        throw new BadRequestException(
+          "Child budget's amount cannot exceed the parent's budget amount."
+        );
+      }
+    }
+    const category = updateBudgetDto.category_id
+      ? await this.checkCategory(updateBudgetDto.category_id)
+      : existingBudget.category;
+
+    const parentBudget = updateBudgetDto.budget_id
+      ? await this.checkParent(updateBudgetDto.budget_id)
+      : existingBudget.parent;
+
+    Object.assign(existingBudget, {
+      ...updateBudgetDto,
+      category,
+      parent: parentBudget,
+    });
+
+    return await this.budgetRepository.save(existingBudget);
+  }
+
+  async deleteBudget(id: number): Promise<void> {
+    const budget = await this.validateBudgetExists(id);
+    budget.isDeleted = true;
+    await this.budgetRepository.save(budget);
+  }
+
+  async restoreBudget(id: number): Promise<Budget> {
+    const budget = await this.validateBudgetExists(id);
+    budget.isDeleted = false;
+    return await this.budgetRepository.save(budget);
+  }
+
+  async permanentlyDeleteBudget(id: number): Promise<void> {
+    const budget = await this.validateBudgetExists(id);
+    await this.budgetRepository.remove(budget);
   }
 }
