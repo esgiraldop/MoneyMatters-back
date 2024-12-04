@@ -14,6 +14,9 @@ export class Transaction {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @Column({ type: "text", nullable: true })
+  name: string;
+
   @Column({ type: "decimal", precision: 10, scale: 2 })
   amount: number;
 

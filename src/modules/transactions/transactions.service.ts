@@ -6,7 +6,7 @@ import {
 import { CreateTransactionDto } from "./dto/create-transaction.dto";
 import { UpdateTransactionDto } from "./dto/update-transaction.dto";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { FindOptionsWhere, Like, Repository } from "typeorm";
 import { Transaction } from "./entities/transaction.entity";
 import { UsersService } from "../users/users.service";
 import { BudgetService } from "../budget/budget.service";
@@ -36,9 +36,7 @@ export class TransactionsService {
     // Find user, category and budget by id
     const user = await this.usersService.findById(user_id);
     if (!user) throw new NotFoundException(`The user could not be found`);
-    console.log("\n\n\ncategory_id: ", category_id);
     const category = await this.categoryService.findOne(category_id);
-    console.log("category: ", category);
     if (!category)
       throw new NotFoundException(`The category could not be found`);
 
@@ -59,9 +57,20 @@ export class TransactionsService {
     }
   }
 
-  async findAll(userId: number): Promise<Transaction[]> {
+  async findAll(
+    userId: number,
+    filterByName: string | null
+  ): Promise<Transaction[]> {
+    const whereCondition: FindOptionsWhere<Transaction> = {
+      user: { id: userId },
+    };
+
+    if (filterByName) {
+      whereCondition.name = Like(`%${filterByName}%`);
+    }
+
     const transactions = await this.transactionRepository.find({
-      where: { user: { id: userId } },
+      where: whereCondition,
       relations: ["budget"],
     });
 

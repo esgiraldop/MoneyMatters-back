@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   UseGuards,
+  Query,
 } from "@nestjs/common";
 import { TransactionsService } from "./transactions.service";
 import { CreateTransactionDto } from "./dto/create-transaction.dto";
@@ -28,8 +29,11 @@ export class TransactionsController {
   }
 
   @Get()
-  findAll(@UserId() userId: string) {
-    return this.transactionsService.findAll(+userId);
+  findAll(
+    @UserId() userId: string,
+    @Query("filterByName") filterByName: string | null
+  ) {
+    return this.transactionsService.findAll(+userId, filterByName);
   }
 
   @Get(":id")
