@@ -9,10 +9,11 @@ export class CategoryService {
     @InjectRepository(Category)
     private readonly categoryRepository: Repository<Category>
   ) {}
-  findAll() {
-    return `This action returns all category`;
+  async findAll(): Promise<Category[]> {
+    return await this.categoryRepository.find();
   }
 
-  async findOne(id: number): Promise<Category> {    return await this.categoryRepository.findOne({ where: { id: id } });
+  async findOne(id: number): Promise<Category> {
+    return await this.categoryRepository.findOne({ where: { id: id } });
   }
 }
