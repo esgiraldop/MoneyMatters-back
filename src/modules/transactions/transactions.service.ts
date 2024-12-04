@@ -35,23 +35,15 @@ export class TransactionsService {
       );
     // Find user, category and budget by id
     const user = await this.usersService.findById(user_id);
-    if (!user)
-      throw new NotFoundException(
-        `The user with id ${user_id} could not be found`
-      );
+    if (!user) throw new NotFoundException(`The user could not be found`);
     console.log("\n\n\ncategory_id: ", category_id);
     const category = await this.categoryService.findOne(category_id);
     console.log("category: ", category);
     if (!category)
-      throw new NotFoundException(
-        `The category with id ${category_id} could not be found`
-      );
+      throw new NotFoundException(`The category could not be found`);
 
     const budget = await this.budgetService.findOne(budget_id);
-    if (!budget)
-      throw new NotFoundException(
-        `The budget with id ${budget_id} could not be found`
-      );
+    if (!budget) throw new NotFoundException(`The budget could not be found`);
 
     if (user && category && budget) {
       const createdData = this.transactionRepository.create({
@@ -67,15 +59,31 @@ export class TransactionsService {
     }
   }
 
-  findAll() {
-    return `This action returns all transactions`;
+  async findAll(userId: number): Promise<Transaction[]> {
+    const transactions = await this.transactionRepository.find({
+      where: { user: { id: userId } },
+      relations: ["budget"],
+    });
+
+    if (transactions.length < 1)
+      throw new NotFoundException(`No transactions could be found`);
+
+    return transactions;
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} transaction`;
+  async findOne(userId: number, id: number): Promise<Transaction> {
+    const transaction = await this.transactionRepository.findOne({
+      where: { id, user: { id: userId } },
+    });
+
+    if (!transaction)
+      throw new NotFoundException(`The transaction could not be found`);
+
+    return transaction;
   }
 
   async update(
+    userId: number,
     id: number,
     updateTransactionDto: UpdateTransactionDto
   ): Promise<Transaction> {
@@ -87,17 +95,10 @@ export class TransactionsService {
 
     const category = await this.categoryService.findOne(category_id);
     if (!category) {
-      throw new NotFoundException(
-        `The category with id ${category_id} could not be found`
-      );
+      throw new NotFoundException(`The category could not be found`);
     } else {
-      const transaction = await this.transactionRepository.findOne({
-        where: { id },
-      });
-      if (!transaction)
-        throw new NotFoundException(
-          `The transaction with id ${id} could not be found`
-        );
+      const transaction = await this.findOne(userId, id);
+
       const updatedTransaction = this.transactionRepository.merge(transaction, {
         ...rest,
         category,
@@ -106,14 +107,9 @@ export class TransactionsService {
     }
   }
 
-  async remove(id: number) {
-    const transaction = await this.transactionRepository.findOne({
-      where: { id },
-    });
-    if (!transaction)
-      throw new NotFoundException(
-        `The transaction with id ${id} could not be found`
-      );
+  async remove(userId: number, id: number) {
+    const transaction = await this.findOne(userId, id);
+
     const updatedTransaction = this.transactionRepository.merge(transaction, {
       isActive: false,
     });

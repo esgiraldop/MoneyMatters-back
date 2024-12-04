@@ -28,25 +28,26 @@ export class TransactionsController {
   }
 
   @Get()
-  findAll() {
-    return this.transactionsService.findAll();
+  findAll(@UserId() userId: string) {
+    return this.transactionsService.findAll(+userId);
   }
 
   @Get(":id")
-  findOne(@Param("id") id: string) {
-    return this.transactionsService.findOne(+id);
+  findOne(@UserId() userId: string, @Param("id") id: string) {
+    return this.transactionsService.findOne(+userId, +id);
   }
 
   @Patch(":id")
   update(
+    @UserId() userId: string,
     @Param("id") id: string,
     @Body() updateTransactionDto: UpdateTransactionDto
   ) {
-    return this.transactionsService.update(+id, updateTransactionDto);
+    return this.transactionsService.update(+userId, +id, updateTransactionDto);
   }
 
   @Delete(":id")
-  remove(@Param("id") id: string) {
-    return this.transactionsService.remove(+id);
+  remove(@UserId() userId: string, @Param("id") id: string) {
+    return this.transactionsService.remove(+userId, +id);
   }
 }
