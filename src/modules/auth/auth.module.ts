@@ -1,12 +1,12 @@
-import { Module } from '@nestjs/common';
-import { AuthService } from './auth.service';
-import { AuthController } from './auth.controller';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { JwtModule } from '@nestjs/jwt';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { User } from '../users/entities/user.entity';
-import { LoginService } from './services/login.service';
-import { RegisterService } from './services/register.service';
+import { Module } from "@nestjs/common";
+import { AuthService } from "./auth.service";
+import { AuthController } from "./auth.controller";
+import { ConfigModule, ConfigService } from "@nestjs/config";
+import { JwtModule } from "@nestjs/jwt";
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { User } from "../users/entities/user.entity";
+import { LoginService } from "./services/login.service";
+import { RegisterService } from "./services/register.service";
 
 @Module({
   imports: [
@@ -16,9 +16,9 @@ import { RegisterService } from './services/register.service';
       imports: [ConfigModule], // Import ConfigModule here
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET'),
+        secret: configService.get<string>("JWT_SECRET_MONEYM"),
         signOptions: {
-          expiresIn: configService.get<string>('TOKEN_EXPIRATION'),
+          expiresIn: configService.get<string>("TOKEN_EXPIRATION_MONEYM"),
         },
       }),
     }),

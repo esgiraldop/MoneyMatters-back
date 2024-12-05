@@ -17,12 +17,15 @@ export class User {
   @Column({ type: "varchar", length: 255 })
   password: string;
 
+  @Column({ type: "boolean", nullable: true })
+  isVerified: boolean;
+
   @OneToMany(() => Transaction, (transaction) => transaction.user)
   transactions: Transaction[];
 
   @OneToMany(() => Budget, (budget) => budget.user)
   budgets: Budget[];
 
-  @OneToMany(( ) => RecoveryCode, (recoveryCode) => recoveryCode.user)
+  @OneToMany(() => RecoveryCode, (recoveryCode) => recoveryCode.user)
   recoveryCodes: RecoveryCode[];
 }
