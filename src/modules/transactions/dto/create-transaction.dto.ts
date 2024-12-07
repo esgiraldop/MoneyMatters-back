@@ -27,11 +27,6 @@ export class CreateTransactionDto {
   @IsDateString()
   transactionDate: Date;
 
-  @IsInt({ message: "The category id must be an integer" })
-  @IsPositive({ message: "The category id must be a positive number" })
-  @IsNotEmpty({ message: "The category id must not be empty" })
-  category_id: number;
-
   @IsInt({ message: "The budget id must be an integer" })
   @IsPositive({ message: "The category id must be a positive number" })
   @IsNotEmpty({ message: "The budget id must not be empty" })

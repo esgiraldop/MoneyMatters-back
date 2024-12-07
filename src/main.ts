@@ -19,7 +19,7 @@ async function bootstrap() {
     console.log("\n\nThere was an error connecting to the database\n\n");
   }
 
-  const PORT = process.env.PORT || 3000;
+  const PORT = process.env.PORT || 3001;
 
   const config = new DocumentBuilder()
     .setTitle("Money matters API")

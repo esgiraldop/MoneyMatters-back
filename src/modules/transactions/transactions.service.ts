@@ -27,7 +27,7 @@ export class TransactionsService {
     createTransactionDto: CreateTransactionDto,
     user_id: number
   ): Promise<Transaction> {
-    const { amount, description, transactionDate, category_id, budget_id } =
+    const { amount, description, transactionDate, budget_id } =
       createTransactionDto;
     if (!isDateInCurrentMonth(transactionDate))
       throw new ConflictException(
@@ -36,12 +36,14 @@ export class TransactionsService {
     // Find user, category and budget by id
     const user = await this.usersService.findById(user_id);
     if (!user) throw new NotFoundException(`The user could not be found`);
-    const category = await this.categoryService.findOne(category_id);
-    if (!category)
-      throw new NotFoundException(`The category could not be found`);
 
     const budget = await this.budgetService.findOne(budget_id);
     if (!budget) throw new NotFoundException(`The budget could not be found`);
+
+    // Category inserted is the same one from the budget to keep consistency
+    const category = await this.categoryService.findOne(budget.category.id);
+    if (!category)
+      throw new NotFoundException(`The category could not be found`);
 
     if (user && category && budget) {
       const createdData = this.transactionRepository.create({
@@ -96,24 +98,35 @@ export class TransactionsService {
     id: number,
     updateTransactionDto: UpdateTransactionDto
   ): Promise<Transaction> {
-    const { category_id, budget_id, ...rest } = updateTransactionDto;
+    const { budget_id, ...rest } = updateTransactionDto;
+    let category, updatedTransaction;
+
     if (rest.transactionDate && !isDateInCurrentMonth(rest.transactionDate))
       throw new ConflictException(
         "The transaction could not be created since the date is not in the same month"
       );
 
-    const category = await this.categoryService.findOne(category_id);
-    if (!category) {
-      throw new NotFoundException(`The category could not be found`);
-    } else {
-      const transaction = await this.findOne(userId, id);
+    if (budget_id) {
+      const budget = await this.budgetService.findOne(budget_id);
+      if (!budget) throw new NotFoundException(`The budget could not be found`);
+      category = await this.categoryService.findOne(budget.category.id);
+      if (!category)
+        throw new NotFoundException(`The category could not be found`);
+    }
 
-      const updatedTransaction = this.transactionRepository.merge(transaction, {
+    const transaction = await this.findOne(userId, id);
+    if (!category) {
+      updatedTransaction = this.transactionRepository.merge(transaction, {
+        ...updateTransactionDto,
+      });
+    } else {
+      updatedTransaction = this.transactionRepository.merge(transaction, {
         ...rest,
         category,
       });
-      return await this.transactionRepository.save(updatedTransaction);
     }
+    if (updatedTransaction)
+      return await this.transactionRepository.save(updatedTransaction);
   }
 
   async remove(userId: number, id: number) {
