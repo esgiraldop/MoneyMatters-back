@@ -127,6 +127,8 @@ export class TransactionsService {
     }
     if (updatedTransaction)
       return await this.transactionRepository.save(updatedTransaction);
+
+    throw new ConflictException("The transaction could not be updated");
   }
 
   async remove(userId: number, id: number) {

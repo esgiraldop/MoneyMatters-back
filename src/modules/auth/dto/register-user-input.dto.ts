@@ -6,6 +6,7 @@ import {
   MaxLength,
   MinLength,
 } from "class-validator";
+import { ToLowerCase } from "src/common/decorators/to-lower-case.decorator";
 
 export class RegisterUserDto {
   @ApiProperty({ example: "Erick_test" })
@@ -13,12 +14,14 @@ export class RegisterUserDto {
   @IsString()
   @MinLength(5, { message: "name must be at least 5 characters long." })
   @MaxLength(30, { message: "must be at most 30 characters long." })
+  @ToLowerCase()
   name: string;
 
   @ApiProperty({ example: "Erick_test@email.com" })
   @IsEmail()
   @IsNotEmpty()
   @IsString()
+  @ToLowerCase()
   email: string;
 
   @ApiProperty({ example: "12345678" })
