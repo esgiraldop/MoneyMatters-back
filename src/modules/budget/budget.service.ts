@@ -76,7 +76,7 @@ export class BudgetService {
         );
       }
     }
-
+    // TODO: Add service to update the parent budget's amount property
     const newBudget = this.budgetRepository.create({
       ...createBudgetDto,
       user: { id: userId },
@@ -136,7 +136,7 @@ export class BudgetService {
     const parentBudget = updateBudgetDto.budget_id
       ? await this.checkParent(updateBudgetDto.budget_id)
       : existingBudget.parent;
-
+    // TODO: Add service to update the parent budget's amount property
     Object.assign(existingBudget, {
       ...updateBudgetDto,
       category,
@@ -148,6 +148,7 @@ export class BudgetService {
 
   async deleteBudget(id: number): Promise<void> {
     const budget = await this.validateBudgetExists(id);
+    // TODO: Add service to update the parent budget's amount property
     budget.isDeleted = true;
     await this.budgetRepository.save(budget);
   }
