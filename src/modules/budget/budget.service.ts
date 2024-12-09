@@ -40,7 +40,7 @@ export class BudgetService {
       where: { id: categoryId },
     });
     if (!category) {
-      throw new NotFoundException("Category does not exist");
+      throw new NotFoundException("The category does not exist");
     }
     return category;
   }
@@ -60,7 +60,7 @@ export class BudgetService {
     if (parentBudget && createBudgetDto.amount) {
       if (parentBudget.amount < createBudgetDto.amount) {
         throw new BadRequestException(
-          "Child budget's amount cannot exceed the parent's budget amount."
+          "A child budget's amount cannot exceed the parent's budget amount."
         );
       }
     }
@@ -72,7 +72,7 @@ export class BudgetService {
         createBudgetDto.endDate
       ) {
         throw new BadRequestException(
-          "Parent budget can only modify the 'name'. Amount and Date cannot be set at creation."
+          "A parent budget can only be created setting the name. Amount and Date cannot be set at creation."
         );
       }
     }
@@ -117,7 +117,7 @@ export class BudgetService {
         updateBudgetDto.endDate
       ) {
         throw new BadRequestException(
-          "Parent budget can only modify the 'name'. Amount and Date cannot be changed."
+          "In a parent budget only the name can be created. The Amount and Date cannot be modifief."
         );
       }
     }
@@ -125,7 +125,7 @@ export class BudgetService {
     if (isChildBudget && updateBudgetDto.amount) {
       if (existingBudget.parent.amount < updateBudgetDto.amount) {
         throw new BadRequestException(
-          "Child budget's amount cannot exceed the parent's budget amount."
+          "A child budget's amount cannot exceed the parent's budget amount."
         );
       }
     }

@@ -5,8 +5,8 @@ import {
   IsNumber,
   IsPositive,
   IsString,
-  Max,
-  Min,
+  MaxLength,
+  MinLength,
 } from "class-validator";
 
 export class CreateTransactionDto {
@@ -16,8 +16,8 @@ export class CreateTransactionDto {
   amount: number;
 
   @IsNotEmpty({ message: "The name must not be empty" })
-  @Min(3, { message: "The name must have at least three characters" })
-  @Max(30, { message: "The name must have 30 characters maximum" })
+  @MinLength(3, { message: "The name must have at least three characters" })
+  @MaxLength(30, { message: "The name must have 30 characters maximum" })
   @IsString({ message: "The name must be a string" })
   name: string;
 
