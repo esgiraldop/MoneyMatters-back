@@ -76,9 +76,6 @@ export class TransactionsService {
       relations: ["budget"],
     });
 
-    if (transactions.length < 1)
-      throw new NotFoundException(`No transactions could be found`);
-
     return transactions;
   }
 
