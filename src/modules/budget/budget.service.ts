@@ -46,8 +46,9 @@ export class BudgetService {
     return category;
   }
 
-  private isParentBudget(budget: Budget): boolean {
-    return budget.budget_id ? false : true;
+  private isParentBudget(budget: Budget | null): boolean {
+    if (budget instanceof Budget) return budget.budget_id ? false : true;
+    return true;
   }
 
   private async calculateChildBudgetsAmounts(
@@ -59,7 +60,7 @@ export class BudgetService {
       .where("budget.budget_id = :budget_id", { budget_id: parentBudgetId })
       .select("SUM(budget.amount)", "childsum")
       .getRawOne();
-    return result.childsum ? result.childsum : 0;
+    return result.childsum ? +result.childsum : 0;
   }
 
   async createBudget(
@@ -73,10 +74,9 @@ export class BudgetService {
     );
 
     const parentBudget = budget_id ? await this.findOneById(budget_id) : null;
-
     const { startDate, endDate } = getFirstAndLastDayOfMonth();
 
-    if (parentBudget && !this.isParentBudget(parentBudget)) {
+    if (parentBudget && this.isParentBudget(parentBudget)) {
       // If creating a child budget...
       if (!createBudgetDto.amount)
         throw new ConflictException(
@@ -113,15 +113,15 @@ export class BudgetService {
         await queryRunner.manager.save(newBudget);
 
         // Step 2
-        const sumChildAmounts = await this.calculateChildBudgetsAmounts(
-          parentBudget.id
-        );
+        const sumChildAmounts =
+          (await this.calculateChildBudgetsAmounts(parentBudget.id)) + amount;
         const updatedParentBudget = this.budgetRepository.merge(parentBudget, {
           amount: sumChildAmounts,
         });
         await queryRunner.manager.save(updatedParentBudget);
 
         await queryRunner.commitTransaction();
+        return newBudget;
       } catch (e) {
         await queryRunner.rollbackTransaction();
         throw e;
