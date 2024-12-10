@@ -1,4 +1,4 @@
-import { Between, DataSource, Repository } from "typeorm";
+import { Between, DataSource, getConnection, Repository } from "typeorm";
 import {
   Injectable,
   NotFoundException,
@@ -211,14 +211,6 @@ export class BudgetService {
 
         //Step 2: Update parent amount
         if (restDTO.amount) {
-          console.log(
-            "\n\nawait this.calculateChildBudgetsAmounts(parentBudget.id): ",
-            await this.calculateChildBudgetsAmounts(parentBudget.id)
-          );
-          console.log("restDTO.amount: ", restDTO.amount);
-          console.log("existingBudget.amount: ", existingBudget.amount);
-          console.log("currentAmount: ", currentAmount);
-
           const sumChildAmounts =
             (await this.calculateChildBudgetsAmounts(parentBudget.id)) +
             restDTO.amount -
@@ -259,11 +251,72 @@ export class BudgetService {
   }
 
   async deleteBudget(id: number): Promise<void> {
-    //TODO: Check the budget to delete is not a parent, and if it is, delete all of its children
+    //Check the budget to delete is it is a parent budget. If yes, delete it and delete all of its childrens. If not, delete it and update its parent budget amount attribute.
+
     const budget = await this.findOneById(id);
-    // TODO: Add service to update the parent budget's amount property
-    budget.isDeleted = true;
-    await this.budgetRepository.save(budget);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    if (!this.isParentBudget(budget)) {
+      // Starting transaction to 1. Soft delete the budget and 2. Update the parent value
+      try {
+        // Step 1
+        queryRunner.manager.merge(Budget, budget, { isDeleted: true });
+        await this.budgetRepository.save(budget);
+
+        //Step 2
+        const childSum =
+          (await this.calculateChildBudgetsAmounts(budget.budget_id)) -
+          +budget.amount;
+        const parentBudget = await this.findOneById(budget.budget_id);
+        const updatedParentBudget = queryRunner.manager.merge(
+          Budget,
+          parentBudget,
+          { amount: childSum }
+        );
+        await queryRunner.manager.save(updatedParentBudget);
+        await queryRunner.commitTransaction();
+        return;
+      } catch (error) {
+        await queryRunner.rollbackTransaction();
+        throw new ConflictException("Transaction not completed: ", error);
+      } finally {
+        if (!queryRunner.isReleased) {
+          await queryRunner.release();
+        }
+      }
+    } else {
+      // Starting transaction to 1. Soft delete the budget and 2. Soft delete the child budgets
+      try {
+        //Step 1
+        const updatedBudget = queryRunner.manager.merge(Budget, budget, {
+          isDeleted: true,
+        });
+        await queryRunner.manager.save(updatedBudget);
+
+        //Step 2
+        const test = await queryRunner.manager
+          .getRepository(Budget)
+          .createQueryBuilder()
+          .where("budget_id = :budget_id", { budget_id: budget.id })
+          .getMany();
+        await queryRunner.manager
+          .getRepository(Budget)
+          .createQueryBuilder()
+          .update(Budget)
+          .set({ isDeleted: true })
+          .where("budget_id = :id", { id: budget.id })
+          .execute();
+
+        await queryRunner.commitTransaction();
+        return;
+      } catch (error) {
+        await queryRunner.rollbackTransaction();
+        throw new ConflictException("Transaction not completed: ", error);
+      } finally {
+        if (!queryRunner.isReleased) await queryRunner.release();
+      }
+    }
   }
 
   async restoreBudget(id: number): Promise<Budget> {
