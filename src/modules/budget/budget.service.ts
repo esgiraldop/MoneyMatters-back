@@ -134,7 +134,7 @@ export class BudgetService {
 
   async getAll(userId: number): Promise<Budget[]> {
     const currentDate = getCurrentDate();
-    console.log("currentDate: ", currentDate);
+
     return await this.budgetRepository
       .createQueryBuilder("budget")
       .leftJoinAndSelect("budget.category", "category")
@@ -200,9 +200,9 @@ export class BudgetService {
     budget.isDeleted = false;
     return await this.budgetRepository.save(budget);
   }
-
-  async permanentlyDeleteBudget(id: number): Promise<void> {
-    const budget = await this.findOneById(id);
-    await this.budgetRepository.remove(budget);
-  }
+  // // Commenting this since it is probably not needed
+  // async permanentlyDeleteBudget(id: number): Promise<void> {
+  //   const budget = await this.findOneById(id);
+  //   await this.budgetRepository.remove(budget);
+  // }
 }
