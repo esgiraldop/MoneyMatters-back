@@ -14,15 +14,15 @@ import {
   getCurrentDate,
   getFirstAndLastDayOfMonth,
 } from "src/common/utilities/dates.utility";
+import { CategoryService } from "../category/category.service";
 
 @Injectable()
 export class BudgetService {
   constructor(
     @InjectRepository(Budget)
     private readonly budgetRepository: Repository<Budget>,
-    @InjectRepository(Category)
-    private readonly categoryRepository: Repository<Category>,
-    private dataSource: DataSource
+    private dataSource: DataSource,
+    private categoryService: CategoryService
   ) {}
 
   async findOneById(id: number): Promise<Budget> {
@@ -34,16 +34,6 @@ export class BudgetService {
       throw new NotFoundException("Budget not found");
     }
     return budget;
-  }
-
-  private async getCategoryById(categoryId: number): Promise<Category> {
-    const category = await this.categoryRepository.findOne({
-      where: { id: categoryId },
-    });
-    if (!category) {
-      throw new NotFoundException("The category does not exist");
-    }
-    return category;
   }
 
   private isParentBudget(budget: Budget | null): boolean {
@@ -69,7 +59,7 @@ export class BudgetService {
   ): Promise<Budget> {
     const generalCategoryId = 10; // 10 is for "general" category
     const { category_id, budget_id, amount, name } = createBudgetDto;
-    const category = await this.getCategoryById(
+    const category = await this.categoryService.findOneById(
       !category_id ? generalCategoryId : category_id
     );
 
@@ -183,7 +173,7 @@ export class BudgetService {
     if (!this.isParentBudget(existingBudget)) {
       // Child budget
       const category = category_id
-        ? await this.getCategoryById(category_id)
+        ? await this.categoryService.findOneById(category_id)
         : existingBudget.category;
 
       const parentBudget = budget_id

@@ -4,12 +4,12 @@ import { BudgetController } from "./budget.controller";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { Budget } from "./entities/budget.entity";
 import { Category } from "../category/entities/category.entity";
-import { CategoryService } from "../category/category.service";
+import { CategoryModule } from "../category/category.module";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Budget, Category])],
+  imports: [TypeOrmModule.forFeature([Budget, Category]), CategoryModule],
   controllers: [BudgetController],
-  providers: [BudgetService, CategoryService],
+  providers: [BudgetService],
   exports: [BudgetService],
 })
 export class BudgetModule {}

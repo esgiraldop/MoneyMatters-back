@@ -41,7 +41,7 @@ export class TransactionsService {
     if (!budget) throw new NotFoundException(`The budget could not be found`);
 
     // Category inserted is the same one from the budget to keep consistency
-    const category = await this.categoryService.findOne(budget.category.id);
+    const category = await this.categoryService.findOneById(budget.category.id);
     if (!category)
       throw new NotFoundException(`The category could not be found`);
 
@@ -107,7 +107,7 @@ export class TransactionsService {
     if (budget_id) {
       const budget = await this.budgetService.findOneById(budget_id);
       if (!budget) throw new NotFoundException(`The budget could not be found`);
-      category = await this.categoryService.findOne(budget.category.id);
+      category = await this.categoryService.findOneById(budget.category.id);
       if (!category)
         throw new NotFoundException(`The category could not be found`);
     }
