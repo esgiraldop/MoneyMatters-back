@@ -1,35 +1,27 @@
-import {
-  IsInt,
-  IsNumber,
-  IsString,
-  IsOptional,
-  IsBoolean,
-  IsDateString,
-} from "class-validator";
+import { IsInt, IsNumber, IsString, IsOptional } from "class-validator";
 
 export class CreateBudgetDto {
   @IsOptional()
   @IsInt()
   budget_id?: number | null;
 
-  @IsOptional()
   @IsString()
-  name?: string;
+  name: string;
 
+  @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
-  amount: number;
-
-  @IsDateString()
-  startDate: string;
-
-  @IsDateString()
-  endDate: string;
+  amount?: number;
 
   @IsOptional()
-  @IsBoolean()
-  isGeneral?: boolean;
+  @IsInt({ message: "The category id must be an integer" })
+  category_id?: number | null;
 
-  @IsOptional()
-  @IsInt()
-  category_id: number | null;
+  // // Commented out this since the date of insertion is enough to calculate the first and last day of the month
+  // @IsOptional()
+  // @IsDateString()
+  // startDate: string;
+
+  // @IsOptional()
+  // @IsDateString()
+  // endDate?: string;
 }

@@ -37,7 +37,7 @@ export class TransactionsService {
     const user = await this.usersService.findById(user_id);
     if (!user) throw new NotFoundException(`The user could not be found`);
 
-    const budget = await this.budgetService.findOne(budget_id);
+    const budget = await this.budgetService.findOneById(budget_id);
     if (!budget) throw new NotFoundException(`The budget could not be found`);
 
     // Category inserted is the same one from the budget to keep consistency
@@ -73,7 +73,7 @@ export class TransactionsService {
 
     const transactions = await this.transactionRepository.find({
       where: whereCondition,
-      relations: ["budget"],
+      relations: ["budget", "category"],
     });
 
     return transactions;
@@ -82,6 +82,7 @@ export class TransactionsService {
   async findOne(userId: number, id: number): Promise<Transaction> {
     const transaction = await this.transactionRepository.findOne({
       where: { id, user: { id: userId } },
+      relations: ["budget", "category"],
     });
 
     if (!transaction)
@@ -104,7 +105,7 @@ export class TransactionsService {
       );
 
     if (budget_id) {
-      const budget = await this.budgetService.findOne(budget_id);
+      const budget = await this.budgetService.findOneById(budget_id);
       if (!budget) throw new NotFoundException(`The budget could not be found`);
       category = await this.categoryService.findOne(budget.category.id);
       if (!category)

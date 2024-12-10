@@ -14,7 +14,7 @@ import { UpdateBudgetDto } from "./dto/update-budget.dto";
 import { UserId } from "src/common/decorators/user.decorator";
 import { JwtAuthGuard } from "src/common/guards/authentication.guard";
 
-@Controller("budget")
+@Controller("budgets")
 @UseGuards(JwtAuthGuard)
 export class BudgetController {
   constructor(private readonly budgetService: BudgetService) {}
@@ -26,7 +26,7 @@ export class BudgetController {
 
   @Get(":id")
   async findOne(@Param("id") id: number) {
-    return this.budgetService.findOne(id);
+    return this.budgetService.findOneById(id);
   }
 
   @Post()

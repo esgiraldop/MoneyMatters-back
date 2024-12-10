@@ -25,13 +25,13 @@ export class Budget {
   @JoinColumn({ name: "budget_id" })
   parent: Budget | null;
 
-  @OneToMany(() => Budget, (budget) => budget.parent)
+  @OneToMany(() => Budget, (budget) => budget.parent, { nullable: true })
   children: Budget[];
 
-  @Column({ type: "varchar", length: 255, nullable: true })
+  @Column({ type: "varchar", length: 255, nullable: false })
   name: string;
 
-  @Column({ type: "decimal", precision: 10, scale: 2 })
+  @Column({ type: "decimal", precision: 10, scale: 2, nullable: true })
   amount: number;
 
   @Column({ type: "date" })
@@ -54,6 +54,6 @@ export class Budget {
   @OneToMany(() => Transaction, (transaction) => transaction.budget)
   transactions: Transaction[];
 
-  @Column({ type: "boolean", default: false })
+  @Column({ type: "boolean", default: false, nullable: false })
   isDeleted: boolean;
 }
