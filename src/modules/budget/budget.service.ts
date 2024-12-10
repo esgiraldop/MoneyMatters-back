@@ -36,11 +36,6 @@ export class BudgetService {
     return budget;
   }
 
-  private async checkParent(parentId: number): Promise<Budget> {
-    const parentBudget = await this.findOneById(parentId);
-    return parentBudget;
-  }
-
   private async checkCategory(categoryId: number): Promise<Category> {
     const category = await this.categoryRepository.findOne({
       where: { id: categoryId },
@@ -51,8 +46,8 @@ export class BudgetService {
     return category;
   }
 
-  private isParentBudget(parentBudget: Budget): boolean {
-    return parentBudget.budget_id ? false : true;
+  private isParentBudget(budget: Budget): boolean {
+    return budget.budget_id ? false : true;
   }
 
   private async calculateChildBudgetsAmounts(
@@ -71,17 +66,17 @@ export class BudgetService {
     createBudgetDto: CreateBudgetDto,
     userId: number
   ): Promise<Budget> {
+    const generalCategoryId = 10; // 10 is for "general" category
+    const { category_id, budget_id, amount, name } = createBudgetDto;
     const category = await this.checkCategory(
-      !createBudgetDto.category_id ? 10 : createBudgetDto.category_id
-    ); // 10 is for "general" category
+      !category_id ? generalCategoryId : category_id
+    );
 
-    const parentBudget = createBudgetDto.budget_id
-      ? await this.checkParent(createBudgetDto.budget_id)
-      : null;
+    const parentBudget = budget_id ? await this.findOneById(budget_id) : null;
 
     const { startDate, endDate } = getFirstAndLastDayOfMonth();
 
-    if (parentBudget) {
+    if (parentBudget && !this.isParentBudget(parentBudget)) {
       // If creating a child budget...
       if (!createBudgetDto.amount)
         throw new ConflictException(
@@ -93,24 +88,46 @@ export class BudgetService {
           "The category has to be provided for a child budget"
         );
 
-      // Starting a transaction for 1. Creating a budget and 2. updating the parent budget
-      // const queryRunner = this.dataSource.createQueryRunner();
-      // await queryRunner.connect();
-      // await queryRunner.startTransaction();
-      // try {
-      //   await queryRunner.manager.save(Order, {
-      //     /* order data */
-      //   });
-      //   await queryRunner.manager.save(Item, {
-      //     /* item data */
-      //   });
-      //   await queryRunner.commitTransaction();
-      // } catch (e) {
-      //   await queryRunner.rollbackTransaction();
-      //   throw e;
-      // } finally {
-      //   await queryRunner.release();
-      // }
+      if (createBudgetDto.category_id === generalCategoryId)
+        throw new ConflictException(
+          `The category selected for a child budget cannot be of type "General" since it is only reserved for parent budgets`
+        );
+
+      // Starting a transaction for 1. Creating a budget and 2. updating the parent budget amount
+      const queryRunner = this.dataSource.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+      try {
+        // step 1
+        const newBudget = this.budgetRepository.create({
+          name,
+          amount: amount ? amount : 0,
+          user: { id: userId },
+          parent: parentBudget,
+          category,
+          startDate,
+          endDate,
+          isGeneral: false,
+          isDeleted: false,
+        });
+        await queryRunner.manager.save(newBudget);
+
+        // Step 2
+        const sumChildAmounts = await this.calculateChildBudgetsAmounts(
+          parentBudget.id
+        );
+        const updatedParentBudget = this.budgetRepository.merge(parentBudget, {
+          amount: sumChildAmounts,
+        });
+        await queryRunner.manager.save(updatedParentBudget);
+
+        await queryRunner.commitTransaction();
+      } catch (e) {
+        await queryRunner.rollbackTransaction();
+        throw e;
+      } finally {
+        await queryRunner.release();
+      }
     } else {
       // If creating a parent budget
       if (createBudgetDto.amount || createBudgetDto.category_id) {
@@ -120,12 +137,15 @@ export class BudgetService {
       }
       // TODO: Add service to update the parent budget's amount property
       const newBudget = this.budgetRepository.create({
-        ...createBudgetDto,
+        name,
+        amount: amount ? amount : 0,
         user: { id: userId },
         parent: null,
         category,
         startDate,
         endDate,
+        isGeneral: false,
+        isDeleted: false,
       });
 
       return await this.budgetRepository.save(newBudget);
@@ -176,7 +196,7 @@ export class BudgetService {
       : existingBudget.category;
 
     const parentBudget = updateBudgetDto.budget_id
-      ? await this.checkParent(updateBudgetDto.budget_id)
+      ? await this.findOneById(updateBudgetDto.budget_id)
       : existingBudget.parent;
     // TODO: Add service to update the parent budget's amount property
     Object.assign(existingBudget, {

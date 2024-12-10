@@ -31,7 +31,7 @@ export class Budget {
   @Column({ type: "varchar", length: 255, nullable: false })
   name: string;
 
-  @Column({ type: "decimal", precision: 10, scale: 2, nullable: true })
+  @Column({ type: "decimal", precision: 10, scale: 2, nullable: false })
   amount: number;
 
   @Column({ type: "date" })
