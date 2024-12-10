@@ -9,6 +9,7 @@ import {
 export class CreateBudgetDto {
   @IsOptional()
   @IsInt()
+  @IsPositive({ message: "The budget id cannot be negative" })
   budget_id?: number | null;
 
   @IsString()
@@ -19,16 +20,8 @@ export class CreateBudgetDto {
   @IsNumber({ maxDecimalPlaces: 2 })
   amount?: number;
 
+  @IsPositive({ message: "The category id cannot be negative" })
   @IsOptional()
   @IsInt({ message: "The category id must be an integer" })
   category_id?: number | null;
-
-  // // Commented out this since the date of insertion is enough to calculate the first and last day of the month
-  // @IsOptional()
-  // @IsDateString()
-  // startDate: string;
-
-  // @IsOptional()
-  // @IsDateString()
-  // endDate?: string;
 }
