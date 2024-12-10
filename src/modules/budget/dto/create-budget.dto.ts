@@ -1,4 +1,10 @@
-import { IsInt, IsNumber, IsString, IsOptional } from "class-validator";
+import {
+  IsInt,
+  IsNumber,
+  IsString,
+  IsOptional,
+  IsPositive,
+} from "class-validator";
 
 export class CreateBudgetDto {
   @IsOptional()
@@ -8,6 +14,7 @@ export class CreateBudgetDto {
   @IsString()
   name: string;
 
+  @IsPositive({ message: "The amount cannot be negative" })
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   amount?: number;

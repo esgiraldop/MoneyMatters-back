@@ -36,7 +36,7 @@ export class BudgetService {
     return budget;
   }
 
-  private async checkCategory(categoryId: number): Promise<Category> {
+  private async getCategoryById(categoryId: number): Promise<Category> {
     const category = await this.categoryRepository.findOne({
       where: { id: categoryId },
     });
@@ -69,7 +69,7 @@ export class BudgetService {
   ): Promise<Budget> {
     const generalCategoryId = 10; // 10 is for "general" category
     const { category_id, budget_id, amount, name } = createBudgetDto;
-    const category = await this.checkCategory(
+    const category = await this.getCategoryById(
       !category_id ? generalCategoryId : category_id
     );
 
@@ -92,6 +92,7 @@ export class BudgetService {
         throw new ConflictException(
           `The category selected for a child budget cannot be of type "General" since it is only reserved for parent budgets`
         );
+      //TODO: Add validation for the case in which the parent budget is from a past month or if it is not a parent
 
       // Starting a transaction for 1. Creating a budget and 2. updating the parent budget amount
       const queryRunner = this.dataSource.createQueryRunner();
@@ -99,7 +100,7 @@ export class BudgetService {
       await queryRunner.startTransaction();
       try {
         // step 1
-        const newBudget = this.budgetRepository.create({
+        const newBudget = queryRunner.manager.create(Budget, {
           name,
           amount: amount ? amount : 0,
           user: { id: userId },
@@ -115,16 +116,20 @@ export class BudgetService {
         // Step 2
         const sumChildAmounts =
           (await this.calculateChildBudgetsAmounts(parentBudget.id)) + amount;
-        const updatedParentBudget = this.budgetRepository.merge(parentBudget, {
-          amount: sumChildAmounts,
-        });
+        const updatedParentBudget = queryRunner.manager.merge(
+          Budget,
+          parentBudget,
+          {
+            amount: sumChildAmounts,
+          }
+        );
         await queryRunner.manager.save(updatedParentBudget);
 
         await queryRunner.commitTransaction();
         return newBudget;
       } catch (e) {
         await queryRunner.rollbackTransaction();
-        throw e;
+        throw new ConflictException("Transaction not completed: ", e);
       } finally {
         await queryRunner.release();
       }
@@ -135,7 +140,7 @@ export class BudgetService {
           "A parent budget can only be created setting the name. Amount and category id cannot be set at creation."
         );
       }
-      // TODO: Add service to update the parent budget's amount property
+
       const newBudget = this.budgetRepository.create({
         name,
         amount: amount ? amount : 0,
@@ -172,43 +177,89 @@ export class BudgetService {
     id: number,
     updateBudgetDto: UpdateBudgetDto
   ): Promise<Budget> {
+    const { budget_id, category_id, ...restDTO } = updateBudgetDto;
     const existingBudget = await this.findOneById(id);
+    const currentAmount = +existingBudget.amount;
+    if (!this.isParentBudget(existingBudget)) {
+      // Child budget
+      const category = category_id
+        ? await this.getCategoryById(category_id)
+        : existingBudget.category;
 
-    const isChildBudget = existingBudget.parent !== null;
+      const parentBudget = budget_id
+        ? await this.findOneById(budget_id)
+        : existingBudget.parent;
+      // Starting a transaction for 1. Updating a budget and 2. updating the parent budget amount
+      // TODO: Add service to update the parent budget's amount property
 
-    if (!isChildBudget) {
-      if (updateBudgetDto.amount) {
+      const queryRunner = this.dataSource.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+      try {
+        // Step 1: Update budget
+        const udpatedBudget = queryRunner.manager.merge(
+          Budget,
+          existingBudget,
+          {
+            ...restDTO,
+            category,
+            parent: parentBudget,
+          }
+        );
+
+        const response = await queryRunner.manager.save(udpatedBudget);
+
+        //Step 2: Update parent amount
+        if (restDTO.amount) {
+          console.log(
+            "\n\nawait this.calculateChildBudgetsAmounts(parentBudget.id): ",
+            await this.calculateChildBudgetsAmounts(parentBudget.id)
+          );
+          console.log("restDTO.amount: ", restDTO.amount);
+          console.log("existingBudget.amount: ", existingBudget.amount);
+          console.log("currentAmount: ", currentAmount);
+
+          const sumChildAmounts =
+            (await this.calculateChildBudgetsAmounts(parentBudget.id)) +
+            restDTO.amount -
+            currentAmount;
+
+          const updatedParentBudget = queryRunner.manager.merge(
+            Budget,
+            parentBudget,
+            {
+              amount: sumChildAmounts,
+            }
+          );
+          await queryRunner.manager.save(updatedParentBudget);
+        }
+
+        await queryRunner.commitTransaction();
+        return response;
+      } catch (e) {
+        await queryRunner.rollbackTransaction();
+        throw new ConflictException("Transaction not completed: ", e);
+      } finally {
+        await queryRunner.release();
+      }
+    } else {
+      // Parent budget
+      if (budget_id || restDTO.amount || category_id) {
         throw new BadRequestException(
-          "In a parent budget only the name can be created. The Amount be modifief."
+          "In a parent budget only the name can be edited."
         );
       }
+
+      const updatedBudget = this.budgetRepository.merge(existingBudget, {
+        ...restDTO, // Should only contain "name"
+      });
+
+      return await this.budgetRepository.save(updatedBudget);
     }
-
-    if (isChildBudget && updateBudgetDto.amount) {
-      if (existingBudget.parent.amount < updateBudgetDto.amount) {
-        throw new BadRequestException(
-          "A child budget's amount cannot exceed the parent's budget amount."
-        );
-      }
-    }
-    const category = updateBudgetDto.category_id
-      ? await this.checkCategory(updateBudgetDto.category_id)
-      : existingBudget.category;
-
-    const parentBudget = updateBudgetDto.budget_id
-      ? await this.findOneById(updateBudgetDto.budget_id)
-      : existingBudget.parent;
-    // TODO: Add service to update the parent budget's amount property
-    Object.assign(existingBudget, {
-      ...updateBudgetDto,
-      category,
-      parent: parentBudget,
-    });
-
-    return await this.budgetRepository.save(existingBudget);
   }
 
   async deleteBudget(id: number): Promise<void> {
+    //TODO: Check the budget to delete is not a parent, and if it is, delete all of its children
     const budget = await this.findOneById(id);
     // TODO: Add service to update the parent budget's amount property
     budget.isDeleted = true;
@@ -220,9 +271,4 @@ export class BudgetService {
     budget.isDeleted = false;
     return await this.budgetRepository.save(budget);
   }
-  // // Commenting this since it is probably not needed
-  // async permanentlyDeleteBudget(id: number): Promise<void> {
-  //   const budget = await this.findOneById(id);
-  //   await this.budgetRepository.remove(budget);
-  // }
 }

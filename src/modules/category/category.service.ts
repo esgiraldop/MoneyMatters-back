@@ -10,6 +10,7 @@ export class CategoryService {
     private readonly categoryRepository: Repository<Category>
   ) {}
   async findAll(): Promise<Category[]> {
+    //TODO: return all categories that are not used already for budgets in the same month
     return await this.categoryRepository.find();
   }
 
