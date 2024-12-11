@@ -4,8 +4,6 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
-  forwardRef,
-  Inject,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Budget } from "./entities/budget.entity";
@@ -16,7 +14,6 @@ import {
   getFirstAndLastDayOfMonth,
 } from "src/common/utilities/dates.utility";
 import { CategoryService } from "../category/category.service";
-import { Category } from "../category/entities/category.entity";
 
 @Injectable()
 export class BudgetService {
@@ -150,10 +147,10 @@ export class BudgetService {
     }
   }
 
-  async getAll(userId: number): Promise<Budget[]> {
+  async getAll(userId: number, filterByName: string | null): Promise<Budget[]> {
     const currentDate = getCurrentDate();
 
-    return await this.budgetRepository
+    const query = this.budgetRepository
       .createQueryBuilder("budget")
       .leftJoinAndSelect("budget.category", "category")
       .leftJoinAndSelect("budget.parent", "parent")
@@ -162,8 +159,15 @@ export class BudgetService {
       .andWhere("budget.isDeleted = :isDeleted", { isDeleted: false })
       .andWhere(":currentDate BETWEEN budget.startDate AND budget.endDate", {
         currentDate,
-      })
-      .getMany();
+      });
+
+    if (filterByName) {
+      query.andWhere("budget.name LIKE :filterByName", {
+        filterByName: `%${filterByName}%`,
+      });
+    }
+
+    return await query.getMany();
   }
 
   async updateBudget(

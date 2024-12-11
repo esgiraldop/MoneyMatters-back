@@ -75,7 +75,7 @@ export class TransactionsService {
       where: whereCondition,
       relations: ["budget", "category"],
     });
-
+    //TODO: This must only bring transactions for the current month
     return transactions;
   }
 
@@ -84,7 +84,7 @@ export class TransactionsService {
       where: { id, user: { id: userId } },
       relations: ["budget", "category"],
     });
-
+    //TODO: This must only bring transactions for the current month
     if (!transaction)
       throw new NotFoundException(`The transaction could not be found`);
 

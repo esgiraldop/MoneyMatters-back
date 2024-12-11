@@ -7,6 +7,7 @@ import {
   UseGuards,
   Patch,
   Delete,
+  Query,
 } from "@nestjs/common";
 import { BudgetService } from "./budget.service";
 import { CreateBudgetDto } from "./dto/create-budget.dto";
@@ -20,8 +21,11 @@ export class BudgetController {
   constructor(private readonly budgetService: BudgetService) {}
 
   @Get()
-  async getAll(@UserId() userId: number) {
-    return this.budgetService.getAll(userId);
+  async getAll(
+    @UserId() userId: number,
+    @Query("filterByName") filterByName: string | null
+  ) {
+    return this.budgetService.getAll(userId, filterByName);
   }
 
   @Get(":id")
