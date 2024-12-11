@@ -1,20 +1,22 @@
-import { Between, DataSource, getConnection, Repository } from "typeorm";
+import { DataSource, Repository } from "typeorm";
 import {
   Injectable,
   NotFoundException,
   BadRequestException,
   ConflictException,
+  forwardRef,
+  Inject,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Budget } from "./entities/budget.entity";
 import { CreateBudgetDto } from "./dto/create-budget.dto";
 import { UpdateBudgetDto } from "./dto/update-budget.dto";
-import { Category } from "../category/entities/category.entity";
 import {
   getCurrentDate,
   getFirstAndLastDayOfMonth,
 } from "src/common/utilities/dates.utility";
 import { CategoryService } from "../category/category.service";
+import { Category } from "../category/entities/category.entity";
 
 @Injectable()
 export class BudgetService {
@@ -22,6 +24,7 @@ export class BudgetService {
     @InjectRepository(Budget)
     private readonly budgetRepository: Repository<Budget>,
     private dataSource: DataSource,
+    // @Inject(forwardRef(() => CategoryService))
     private categoryService: CategoryService
   ) {}
 
@@ -284,12 +287,6 @@ export class BudgetService {
         });
         await queryRunner.manager.save(updatedBudget);
 
-        //Step 2
-        const test = await queryRunner.manager
-          .getRepository(Budget)
-          .createQueryBuilder()
-          .where("budget_id = :budget_id", { budget_id: budget.id })
-          .getMany();
         await queryRunner.manager
           .getRepository(Budget)
           .createQueryBuilder()
@@ -313,5 +310,19 @@ export class BudgetService {
     const budget = await this.findOneById(id);
     budget.isDeleted = false;
     return await this.budgetRepository.save(budget);
+  }
+
+  async getUsedCategories(userId: number): Promise<{ categoryId: number }[]> {
+    // Gets all the categories used by a user in the current month according to their budgets
+    const currentDate = getCurrentDate();
+    return this.budgetRepository
+      .createQueryBuilder("budget")
+      .leftJoinAndSelect("budget.category", "category")
+      .select("category.id", "categoryId")
+      .where("budget.user_id = :user_id", { user_id: userId })
+      .andWhere(":currentDate BETWEEN budget.startDate AND budget.endDate", {
+        currentDate,
+      })
+      .getRawMany();
   }
 }
