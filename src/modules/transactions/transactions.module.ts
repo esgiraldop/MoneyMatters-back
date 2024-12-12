@@ -19,5 +19,6 @@ import { Category } from "../category/entities/category.entity";
   ],
   controllers: [TransactionsController],
   providers: [TransactionsService, BudgetService],
+  exports: [TransactionsService],
 })
 export class TransactionsModule {}

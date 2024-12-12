@@ -1,9 +1,11 @@
-import { DataSource, FindOptionsWhere, Repository } from "typeorm";
+import { DataSource, FindOptionsWhere, In, Repository } from "typeorm";
 import {
   Injectable,
   NotFoundException,
   BadRequestException,
   ConflictException,
+  Inject,
+  forwardRef,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Budget } from "./entities/budget.entity";
@@ -14,6 +16,8 @@ import {
   getFirstAndLastDayOfMonth,
 } from "src/common/utilities/dates.utility";
 import { CategoryService } from "../category/category.service";
+import { TransactionsService } from "../transactions/transactions.service";
+import { Transaction } from "../transactions/entities/transaction.entity";
 
 @Injectable()
 export class BudgetService {
@@ -22,7 +26,9 @@ export class BudgetService {
     private readonly budgetRepository: Repository<Budget>,
     private dataSource: DataSource,
     // @Inject(forwardRef(() => CategoryService))
-    private categoryService: CategoryService
+    private categoryService: CategoryService,
+    @Inject(forwardRef(() => TransactionsService))
+    private transactionService: TransactionsService
   ) {}
 
   async findOneById(id: number, userId?: number | null): Promise<Budget> {
@@ -160,9 +166,10 @@ export class BudgetService {
   }
 
   async getAll(
-    userId: number,
+    userId?: number | null,
     filterByName?: string | null,
-    currentMonthOnly?: boolean | null
+    currentMonthOnly?: boolean | null,
+    filterByParentId?: number | null
   ): Promise<Budget[]> {
     const currentDate = getCurrentDate();
 
@@ -171,9 +178,17 @@ export class BudgetService {
       .leftJoinAndSelect("budget.category", "category")
       .leftJoinAndSelect("budget.parent", "parent")
       .leftJoinAndSelect("budget.user", "user")
-      .where("budget.user_id = :user_id", { user_id: userId })
-      .andWhere("budget.isDeleted = :isDeleted", { isDeleted: false });
+      .where("budget.isDeleted = :isDeleted", { isDeleted: false });
 
+    // Optional filters
+    if (userId) {
+      query.andWhere("budget.user_id = :user_id", { user_id: userId });
+    }
+    if (filterByParentId) {
+      query.andWhere("budget.budget_id = :budget_id", {
+        budget_id: filterByParentId,
+      });
+    }
     if (currentMonthOnly) {
       query.andWhere(
         ":currentDate BETWEEN budget.startDate AND budget.endDate",
@@ -182,7 +197,6 @@ export class BudgetService {
         }
       );
     }
-
     if (filterByName) {
       query.andWhere("budget.name LIKE :filterByName", {
         filterByName: `%${filterByName}%`,
@@ -269,18 +283,18 @@ export class BudgetService {
   }
 
   async deleteBudget(id: number): Promise<void> {
-    //Check the budget to delete is it is a parent budget. If yes, delete it and delete all of its childrens. If not, delete it and update its parent budget amount attribute.
+    //Check the budget to delete is it is a parent budget. If yes, delete it and delete all of its childrens. If not, delete it and update its parent budget amount attribute. For any of the cases, delete all the children transactions.
 
     const budget = await this.findOneById(id);
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
     if (!this.isParentBudget(budget)) {
-      // Starting transaction to 1. Soft delete the budget and 2. Update the parent value
+      // Starting transaction to 1. Soft delete the budget and 2. Update the parent value 3. Delete all children transactions
       try {
         // Step 1
         queryRunner.manager.merge(Budget, budget, { isDeleted: true });
-        await this.budgetRepository.save(budget);
+        await queryRunner.manager.save(Budget, budget);
 
         //Step 2
         const childSum =
@@ -293,6 +307,20 @@ export class BudgetService {
           { amount: childSum }
         );
         await queryRunner.manager.save(updatedParentBudget);
+
+        //Step 3
+        await queryRunner.manager
+          .getRepository(Transaction)
+          .createQueryBuilder()
+          .update(Transaction)
+          .set({ isActive: false })
+          .where({
+            budget: {
+              id: In([budget.id]),
+            },
+          })
+          .execute();
+
         await queryRunner.commitTransaction();
         return;
       } catch (error) {
@@ -304,7 +332,7 @@ export class BudgetService {
         }
       }
     } else {
-      // Starting transaction to 1. Soft delete the budget and 2. Soft delete the child budgets
+      // Starting transaction to 1. Soft delete the budget and 2. Soft delete the child budgets 3. Delete all children transactions
       try {
         //Step 1
         const updatedBudget = queryRunner.manager.merge(Budget, budget, {
@@ -318,6 +346,28 @@ export class BudgetService {
           .update(Budget)
           .set({ isDeleted: true })
           .where("budget_id = :id", { id: budget.id })
+          .execute();
+
+        //Step 3
+        const childBudgets = await this.getAll(
+          null,
+          null,
+          null,
+          updatedBudget.id
+        );
+        const childBudgetsIds = childBudgets.map(
+          (childBudget) => childBudget.id
+        );
+        await queryRunner.manager
+          .getRepository(Transaction)
+          .createQueryBuilder()
+          .update(Transaction)
+          .set({ isActive: false })
+          .where({
+            budget: {
+              id: In(childBudgetsIds),
+            },
+          })
           .execute();
 
         await queryRunner.commitTransaction();

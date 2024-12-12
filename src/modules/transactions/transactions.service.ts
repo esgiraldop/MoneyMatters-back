@@ -1,21 +1,20 @@
 import {
   ConflictException,
+  forwardRef,
+  Inject,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
 import { CreateTransactionDto } from "./dto/create-transaction.dto";
 import { UpdateTransactionDto } from "./dto/update-transaction.dto";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Between, FindOptionsWhere, Like, Repository } from "typeorm";
+import { Between, FindOptionsWhere, In, Like, Repository } from "typeorm";
 import { Transaction } from "./entities/transaction.entity";
 import { UsersService } from "../users/users.service";
 import { BudgetService } from "../budget/budget.service";
 import { CategoryService } from "../category/category.service";
 import { isDateInCurrentMonth } from "src/common/utilities/check-date-in-current-month.utility";
-import {
-  getCurrentDate,
-  getFirstAndLastDayOfMonth,
-} from "src/common/utilities/dates.utility";
+import { getFirstAndLastDayOfMonth } from "src/common/utilities/dates.utility";
 
 @Injectable()
 export class TransactionsService {
@@ -23,6 +22,7 @@ export class TransactionsService {
     @InjectRepository(Transaction)
     private transactionRepository: Repository<Transaction>,
     private usersService: UsersService,
+    @Inject(forwardRef(() => BudgetService))
     private budgetService: BudgetService,
     private categoryService: CategoryService
   ) {}
@@ -157,5 +157,11 @@ export class TransactionsService {
       isActive: false,
     });
     return await this.transactionRepository.save(updatedTransaction);
+  }
+
+  async findByBudgetIds(budgetIds: number[]) {
+    return await this.transactionRepository.find({
+      where: { budget: { id: In(budgetIds) } },
+    });
   }
 }
