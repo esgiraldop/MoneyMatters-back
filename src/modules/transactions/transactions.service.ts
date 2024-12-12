@@ -6,12 +6,16 @@ import {
 import { CreateTransactionDto } from "./dto/create-transaction.dto";
 import { UpdateTransactionDto } from "./dto/update-transaction.dto";
 import { InjectRepository } from "@nestjs/typeorm";
-import { FindOptionsWhere, Like, Repository } from "typeorm";
+import { Between, FindOptionsWhere, Like, Repository } from "typeorm";
 import { Transaction } from "./entities/transaction.entity";
 import { UsersService } from "../users/users.service";
 import { BudgetService } from "../budget/budget.service";
 import { CategoryService } from "../category/category.service";
 import { isDateInCurrentMonth } from "src/common/utilities/check-date-in-current-month.utility";
+import {
+  getCurrentDate,
+  getFirstAndLastDayOfMonth,
+} from "src/common/utilities/dates.utility";
 
 @Injectable()
 export class TransactionsService {
@@ -37,7 +41,14 @@ export class TransactionsService {
     const user = await this.usersService.findById(user_id);
     if (!user) throw new NotFoundException(`The user could not be found`);
 
-    const budget = await this.budgetService.findOneById(budget_id);
+    const budget = await this.budgetService.findOneById(budget_id, user_id);
+
+    if (this.budgetService.isParentBudget(budget)) {
+      throw new ConflictException(
+        `A transaction cannot be added to a parent budget`
+      );
+    }
+
     if (!budget) throw new NotFoundException(`The budget could not be found`);
 
     // Category inserted is the same one from the budget to keep consistency
@@ -61,11 +72,21 @@ export class TransactionsService {
 
   async findAll(
     userId: number,
-    filterByName: string | null
+    filterByName?: string | null,
+    currentMonthOnly?: boolean | null
   ): Promise<Transaction[]> {
+    const { startDate, endDate } = getFirstAndLastDayOfMonth();
+
     const whereCondition: FindOptionsWhere<Transaction> = {
       user: { id: userId },
     };
+
+    if (currentMonthOnly) {
+      whereCondition.transactionDate = Between(
+        new Date(startDate),
+        new Date(endDate)
+      );
+    }
 
     if (filterByName) {
       whereCondition.name = Like(`%${filterByName}%`);
@@ -75,7 +96,7 @@ export class TransactionsService {
       where: whereCondition,
       relations: ["budget", "category"],
     });
-    //TODO: This must only bring transactions for the current month
+
     return transactions;
   }
 
@@ -84,7 +105,7 @@ export class TransactionsService {
       where: { id, user: { id: userId } },
       relations: ["budget", "category"],
     });
-    //TODO: This must only bring transactions for the current month
+
     if (!transaction)
       throw new NotFoundException(`The transaction could not be found`);
 

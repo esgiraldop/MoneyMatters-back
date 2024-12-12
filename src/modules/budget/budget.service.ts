@@ -1,4 +1,4 @@
-import { DataSource, Repository } from "typeorm";
+import { DataSource, FindOptionsWhere, Repository } from "typeorm";
 import {
   Injectable,
   NotFoundException,
@@ -25,9 +25,12 @@ export class BudgetService {
     private categoryService: CategoryService
   ) {}
 
-  async findOneById(id: number): Promise<Budget> {
+  async findOneById(id: number, userId?: number | null): Promise<Budget> {
+    const whereCondition: FindOptionsWhere<Budget> = { id, isDeleted: false };
+    if (userId) whereCondition.user = { id: userId };
+
     const budget = await this.budgetRepository.findOne({
-      where: { id, isDeleted: false },
+      where: whereCondition,
       relations: ["category", "parent"],
     });
     if (!budget) {
@@ -36,7 +39,7 @@ export class BudgetService {
     return budget;
   }
 
-  private isParentBudget(budget: Budget | null): boolean {
+  isParentBudget(budget: Budget | null): boolean {
     if (budget instanceof Budget) return budget.budget_id ? false : true;
     return true;
   }
@@ -63,6 +66,16 @@ export class BudgetService {
       !category_id ? generalCategoryId : category_id
     );
 
+    //Checking if there is a budget with the same category already created in the same month, for the same user
+    const currentBudgets = await this.getAll(userId, null, true);
+    const budExists = currentBudgets.some(
+      (otherBudget) => otherBudget.category.id === category_id
+    );
+    if (budExists)
+      throw new ConflictException(
+        "A budget with that category has already been created for the current month. Update that budget or delete it."
+      );
+
     const parentBudget = budget_id ? await this.findOneById(budget_id) : null;
     const { startDate, endDate } = getFirstAndLastDayOfMonth();
 
@@ -82,7 +95,6 @@ export class BudgetService {
         throw new ConflictException(
           `The category selected for a child budget cannot be of type "General" since it is only reserved for parent budgets`
         );
-      //TODO: Add validation for the case in which the parent budget is from a past month or if it is not a parent
 
       // Starting a transaction for 1. Creating a budget and 2. updating the parent budget amount
       const queryRunner = this.dataSource.createQueryRunner();
@@ -147,7 +159,11 @@ export class BudgetService {
     }
   }
 
-  async getAll(userId: number, filterByName: string | null): Promise<Budget[]> {
+  async getAll(
+    userId: number,
+    filterByName?: string | null,
+    currentMonthOnly?: boolean | null
+  ): Promise<Budget[]> {
     const currentDate = getCurrentDate();
 
     const query = this.budgetRepository
@@ -156,10 +172,16 @@ export class BudgetService {
       .leftJoinAndSelect("budget.parent", "parent")
       .leftJoinAndSelect("budget.user", "user")
       .where("budget.user_id = :user_id", { user_id: userId })
-      .andWhere("budget.isDeleted = :isDeleted", { isDeleted: false })
-      .andWhere(":currentDate BETWEEN budget.startDate AND budget.endDate", {
-        currentDate,
-      });
+      .andWhere("budget.isDeleted = :isDeleted", { isDeleted: false });
+
+    if (currentMonthOnly) {
+      query.andWhere(
+        ":currentDate BETWEEN budget.startDate AND budget.endDate",
+        {
+          currentDate,
+        }
+      );
+    }
 
     if (filterByName) {
       query.andWhere("budget.name LIKE :filterByName", {
@@ -187,7 +209,6 @@ export class BudgetService {
         ? await this.findOneById(budget_id)
         : existingBudget.parent;
       // Starting a transaction for 1. Updating a budget and 2. updating the parent budget amount
-      // TODO: Add service to update the parent budget's amount property
 
       const queryRunner = this.dataSource.createQueryRunner();
       await queryRunner.connect();

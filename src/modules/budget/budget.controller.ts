@@ -29,8 +29,8 @@ export class BudgetController {
   }
 
   @Get(":id")
-  async findOne(@Param("id") id: number) {
-    return this.budgetService.findOneById(id);
+  async findOne(@UserId() userId: number, @Param("id") id: number) {
+    return this.budgetService.findOneById(id, userId);
   }
 
   @Post()
