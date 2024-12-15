@@ -208,6 +208,8 @@ export class BudgetService {
       (a, b) => b.budget_id - a.budget_id
     ); // Sorting so parent budget is the last one
 
+    if (budgetsResponse.length < 1) return [];
+
     let totalTransactionsSum = 0;
     // Calculating transactions sum per budget
     for (let i = 0; i <= budgetsResponse.length - 2; i++) {
