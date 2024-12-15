@@ -18,6 +18,7 @@ import {
 import { CategoryService } from "../category/category.service";
 import { TransactionsService } from "../transactions/transactions.service";
 import { Transaction } from "../transactions/entities/transaction.entity";
+import { BudgetResponseDTO } from "./dto/budget-response.dto";
 
 @Injectable()
 export class BudgetService {
@@ -170,7 +171,7 @@ export class BudgetService {
     filterByName?: string | null,
     currentMonthOnly?: boolean | null,
     filterByParentId?: number | null
-  ): Promise<Budget[]> {
+  ): Promise<BudgetResponseDTO[]> {
     const currentDate = getCurrentDate();
 
     const query = this.budgetRepository
@@ -178,6 +179,7 @@ export class BudgetService {
       .leftJoinAndSelect("budget.category", "category")
       .leftJoinAndSelect("budget.parent", "parent")
       .leftJoinAndSelect("budget.user", "user")
+      .leftJoinAndSelect("budget.transactions", "transactions")
       .where("budget.isDeleted = :isDeleted", { isDeleted: false });
 
     // Optional filters
@@ -202,8 +204,22 @@ export class BudgetService {
         filterByName: `%${filterByName}%`,
       });
     }
+    const budgetsResponse: BudgetResponseDTO[] = (await query.getMany()).sort(
+      (a, b) => b.budget_id - a.budget_id
+    ); // Sorting so parent budget is the last one
 
-    return await query.getMany();
+    let totalTransactionsSum = 0;
+    // Calculating transactions sum per budget
+    for (let i = 0; i <= budgetsResponse.length - 2; i++) {
+      budgetsResponse[i].transactionsSum = budgetsResponse[
+        i
+      ].transactions.reduce((accum, transac) => +transac.amount + accum, 0);
+      totalTransactionsSum += budgetsResponse[i].transactionsSum;
+    }
+    // Total value for parent budget
+    budgetsResponse[budgetsResponse.length - 1].transactionsSum =
+      totalTransactionsSum;
+    return budgetsResponse;
   }
 
   async updateBudget(

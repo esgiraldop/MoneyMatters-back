@@ -14,6 +14,7 @@ import { CreateBudgetDto } from "./dto/create-budget.dto";
 import { UpdateBudgetDto } from "./dto/update-budget.dto";
 import { UserId } from "src/common/decorators/user.decorator";
 import { JwtAuthGuard } from "src/common/guards/authentication.guard";
+import { BudgetResponseDTO } from "./dto/budget-response.dto";
 
 @Controller("budgets")
 @UseGuards(JwtAuthGuard)
@@ -24,7 +25,7 @@ export class BudgetController {
   async getAll(
     @UserId() userId: number,
     @Query("filterByName") filterByName: string | null
-  ) {
+  ): Promise<BudgetResponseDTO[]> {
     return this.budgetService.getAll(userId, filterByName);
   }
 
