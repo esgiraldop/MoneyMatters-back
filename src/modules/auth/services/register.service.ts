@@ -40,8 +40,9 @@ export class RegisterService {
     await this.userRepository.save(userData);
 
     return {
-      message:
-        "Registration in progress. Please validate your email with the code we just sent to your email.",
+      // message:
+      // "Registration in progress. Please validate your email with the code we just sent to your email.", //TODO: Implement this
+      message: "Registration sucessful.",
     };
   }
 }
