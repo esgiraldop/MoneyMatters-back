@@ -68,7 +68,8 @@ export class BudgetService {
     userId: number
   ): Promise<Budget> {
     const generalCategoryId = 10; // 10 is for "general" category
-    const { category_id, budget_id, amount, name } = createBudgetDto;
+    const { category_id, budget_id, amount, name, description } =
+      createBudgetDto;
     const category = await this.categoryService.findOneById(
       !category_id ? generalCategoryId : category_id
     );
@@ -117,7 +118,7 @@ export class BudgetService {
           category,
           startDate,
           endDate,
-          isGeneral: false,
+          description,
           isDeleted: false,
         });
         await queryRunner.manager.save(newBudget);
@@ -158,7 +159,7 @@ export class BudgetService {
         category,
         startDate,
         endDate,
-        isGeneral: false,
+        description,
         isDeleted: false,
       });
 

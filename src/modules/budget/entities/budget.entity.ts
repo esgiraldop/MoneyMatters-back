@@ -40,8 +40,8 @@ export class Budget {
   @Column({ type: "date" })
   endDate: string;
 
-  @Column({ type: "boolean", default: false })
-  isGeneral: boolean;
+  @Column({ type: "varchar", nullable: true })
+  description: string;
 
   @ManyToOne(() => User, (user) => user.budgets)
   @JoinColumn({ name: "user_id" })

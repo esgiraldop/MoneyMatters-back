@@ -20,6 +20,9 @@ export class CreateBudgetDto {
   @IsNumber({ maxDecimalPlaces: 2 })
   amount?: number;
 
+  @IsString()
+  description: string;
+
   @IsPositive({ message: "The category id cannot be negative" })
   @IsOptional()
   @IsInt({ message: "The category id must be an integer" })
